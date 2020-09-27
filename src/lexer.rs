@@ -13,6 +13,12 @@ pub enum Token<'a> {
   RightParen,
   Equals,
   EOF,
+  True,
+  False,
+  DoubleEquals,
+  If,
+  Then,
+  Else,
 }
 
 fn first(input: &str) -> char {
@@ -59,9 +65,23 @@ fn eat_word(input: &str) -> Result<(&str, Token), Err> {
   let token = match word {
     "let" => Token::LetKeyword,
     "print" => Token::PrintKeyword,
+    "true" => Token::True,
+    "false" => Token::False,
+    "if" => Token::If,
+    "then" => Token::Then,
+    "else" => Token::Else,
     name => Token::Name(name),
   };
   Ok((rest, token))
+}
+
+fn eat_equals(input: &str) -> Result<(&str, Token), Err> {
+  let rest = skip_char(input);
+  if first(rest) == '=' {
+    Ok((skip_char(rest), Token::DoubleEquals))
+  } else {
+    Ok((rest, Token::Equals))
+  }
 }
 
 fn eat_token(input: &str) -> Result<(&str, Token), Err> {
@@ -72,7 +92,7 @@ fn eat_token(input: &str) -> Result<(&str, Token), Err> {
     '/' => Token::Slash,
     '(' => Token::LeftParen,
     ')' => Token::RightParen,
-    '=' => Token::Equals,
+    '=' => return eat_equals(input),
     c if c.is_ascii_alphabetic() => return eat_word(input),
     c if c.is_ascii_digit() => return eat_number(input),
     _ => return Err(unexpected_char(input)),

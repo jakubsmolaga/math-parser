@@ -4,6 +4,7 @@
 pub enum Value {
   Int(i64),
   Float(f64),
+  Bool(bool),
 }
 
 impl Value {
@@ -11,6 +12,13 @@ impl Value {
     match self {
       Value::Float(num) => *num,
       Value::Int(num) => *num as f64,
+      Value::Bool(b) => {
+        if *b {
+          1.0
+        } else {
+          0.0
+        }
+      }
     }
   }
 }
@@ -20,6 +28,7 @@ impl std::fmt::Display for Value {
     match self {
       Int(num) => write!(f, "{}", num),
       Float(num) => write!(f, "{}", num),
+      Bool(b) => write!(f, "{}", b),
     }
   }
 }
@@ -54,6 +63,8 @@ pub enum Expr {
   Addition(Box<Expr>, Box<Expr>),
   Subtraction(Box<Expr>, Box<Expr>),
   Negative(Box<Expr>),
+  Equality(Box<Expr>, Box<Expr>),
+  Conditional(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 
 // EXPRESSION EVALUATION
@@ -90,6 +101,7 @@ fn eval_negative(val: &Expr, env: &mut Env) -> Value {
   match val.eval(env) {
     Int(num) => Int(-num),
     Float(num) => Float(-num),
+    Bool(b) => Bool(!b),
   }
 }
 
@@ -109,6 +121,17 @@ fn eval_print(val: &Expr, env: &mut Env) -> Value {
   val
 }
 
+fn eval_equality(left: &Expr, right: &Expr, env: &mut Env) -> Value {
+  Bool((left.eval(env).f64() - right.eval(env).f64()).abs() < 0.000_001)
+}
+
+fn eval_conditional(cond: &Expr, val_if_true: &Expr, val_if_false: &Expr, env: &mut Env) -> Value {
+  match cond.eval(env) {
+    Bool(true) => val_if_true.eval(env),
+    _ => val_if_false.eval(env),
+  }
+}
+
 impl Expr {
   pub fn eval(&self, env: &mut Env) -> Value {
     match self {
@@ -121,6 +144,10 @@ impl Expr {
       Expr::Addition(left, right) => eval_addition(left, right, env),
       Expr::Subtraction(left, right) => eval_subtraction(left, right, env),
       Expr::Negative(val) => eval_negative(val, env),
+      Expr::Equality(left, right) => eval_equality(left, right, env),
+      Expr::Conditional(cond, val_if_true, val_if_false) => {
+        eval_conditional(cond, val_if_true, val_if_false, env)
+      }
     }
   }
 }
@@ -147,4 +174,17 @@ pub fn multiply(left: Expr, right: Expr) -> Expr {
 }
 pub fn divide(left: Expr, right: Expr) -> Expr {
   Expr::Division(Box::from(left), Box::from(right))
+}
+pub fn boolean(val: bool) -> Expr {
+  Expr::Literal(Value::Bool(val))
+}
+pub fn equality(left: Expr, right: Expr) -> Expr {
+  Expr::Equality(Box::from(left), Box::from(right))
+}
+pub fn conditional(cond: Expr, val_if_true: Expr, val_if_false: Expr) -> Expr {
+  Expr::Conditional(
+    Box::from(cond),
+    Box::from(val_if_true),
+    Box::from(val_if_false),
+  )
 }
